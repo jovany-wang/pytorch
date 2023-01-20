@@ -177,6 +177,11 @@ if [[ "$BUILD_ENVIRONMENT" == *asan* ]]; then
     (cd test && ! get_exit_code python -c "import torch; torch._C._crash_if_aten_asan(3)")
 fi
 
+if [[ "$BUILD_ENVIRONMENT" == *-debug* ]]; then
+    echo "Hi I'm testing this here"
+    (cd test && ! get_exit_code python -c "import torch; torch._C._crash_if_debug_asserts_fail(1)")
+fi
+
 if [[ $TEST_CONFIG == 'nogpu_NO_AVX2' ]]; then
   export ATEN_CPU_CAPABILITY=default
 elif [[ $TEST_CONFIG == 'nogpu_AVX512' ]]; then
