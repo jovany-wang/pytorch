@@ -178,8 +178,10 @@ if [[ "$BUILD_ENVIRONMENT" == *asan* ]]; then
 fi
 
 if [[ "$BUILD_ENVIRONMENT" == *-debug* ]]; then
-    echo "Hi I'm testing this here"
     (cd test && ! get_exit_code python -c "import torch; torch._C._crash_if_debug_asserts_fail(1)")
+else 
+  # Noop when debug is disabled
+  (cd test && python -c "import torch; torch._C._crash_if_debug_asserts_fail(1)")
 fi
 
 if [[ $TEST_CONFIG == 'nogpu_NO_AVX2' ]]; then
