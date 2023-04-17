@@ -46,6 +46,7 @@ def pre_grad_passes(gm, example_inputs):
     if config.pattern_matcher:
         lazy_init()
         gm = fuse_fx(gm, example_inputs)
+        gm = overrides.fuse_quantization(gm, example_inputs)
 
     return gm
 
