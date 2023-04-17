@@ -139,7 +139,8 @@ class _TestMultiProcessing:
             mp.start_processes(_test_terminate_signal_func, nprocs=2, start_method=self.start_method)
 
     def test_terminate_exit(self):
-        self.assertEqual(1, 2)
+        import signal
+        os.kill(os.getpid(), signal.SIGSEGV)
         exitcode = 123
         with self.assertRaisesRegex(
             Exception,
@@ -148,7 +149,6 @@ class _TestMultiProcessing:
             mp.start_processes(_test_terminate_exit_func, args=(exitcode,), nprocs=2, start_method=self.start_method)
 
     def test_success_first_then_exception(self):
-        self.assertEqual(1, 2)
         exitcode = 123
         with self.assertRaisesRegex(
             Exception,
