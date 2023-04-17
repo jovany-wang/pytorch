@@ -225,7 +225,8 @@ static PyObject* THPModule_crashIfDebugAssertsFail(
       THPUtils_typename(arg));
   int32_t x = THPUtils_unpackInt(arg);
 
-  TORCH_INTERNAL_ASSERT_DEBUG_ONLY(x != 424242, "Expect anything but 424242 as an input for debug builds");
+  TORCH_INTERNAL_ASSERT_DEBUG_ONLY(
+      x != 424242, "Expect anything but 424242 as an input for debug builds");
 
   return THPUtils_packInt32(0);
 }
