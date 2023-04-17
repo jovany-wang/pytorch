@@ -813,7 +813,7 @@ def get_pytest_args(options, cache_dir):
         rerun_options = ["--flake-finder", "--flake-runs=50"]
     elif options.continue_through_error:
         # If continue through error, don't stop on first failure
-        rerun_options = ["--reruns=2", "--scs"]
+        rerun_options = ["--reruns=2"]
     else:
         # When under the normal mode, retry a failed test 2 more times. -x means stop at the first
         # failure
