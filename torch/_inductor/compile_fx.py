@@ -517,6 +517,7 @@ def compile_fx_with_cpp_wrapper(
     example_inputs: List[torch.Tensor],
     inner_compile,
     decompositions: Optional[Dict[OpOverload, Callable]] = None,
+    aot_mode=False,
 ):
     """
     Compile into cpp wrapper:
@@ -537,7 +538,9 @@ def compile_fx_with_cpp_wrapper(
             return compile_fx(
                 module,
                 example_inputs,
-                inner_compile=functools.partial(inner_compile, cpp_wrapper=True),
+                inner_compile=functools.partial(
+                    inner_compile, cpp_wrapper=True, aot_mode=aot_mode
+                ),
                 decompositions=decompositions,
             )
     else:
@@ -558,7 +561,9 @@ def compile_fx_with_cpp_wrapper(
             compiled = compile_fx(
                 module_copy,
                 inputs_copy,
-                inner_compile=functools.partial(inner_compile, cpp_wrapper=False),
+                inner_compile=functools.partial(
+                    inner_compile, cpp_wrapper=False, aot_mode=False
+                ),
                 decompositions=decompositions,
             )
             if fake_mode:
@@ -581,7 +586,9 @@ def compile_fx_with_cpp_wrapper(
             return compile_fx(
                 module,
                 example_inputs,
-                inner_compile=functools.partial(inner_compile, cpp_wrapper=True),
+                inner_compile=functools.partial(
+                    inner_compile, cpp_wrapper=True, aot_mode=aot_mode
+                ),
                 decompositions=decompositions,
             )
 
@@ -593,12 +600,17 @@ def compile_fx_aot(
     config_patches: Optional[Dict[str, Any]] = None,
     decompositions: Optional[Dict[OpOverload, Callable]] = None,
 ):
-    return compile_fx(
-        model_,
-        example_inputs_,
-        inner_compile=functools.partial(inner_compile, aot_mode=True),
-        config_patches=config_patches,
-        decompositions=decompositions,
+    if config_patches:
+        with config.patch(config_patches):
+            return compile_fx_aot(
+                model_,
+                example_inputs_,
+                # need extra layer of patching as backwards is compiled out of scope
+                inner_compile=config.patch(config_patches)(inner_compile),
+                decompositions=decompositions,
+            )
+    return compile_fx_with_cpp_wrapper(
+        model_, example_inputs_, inner_compile, decompositions, aot_mode=True
     )
 
 
