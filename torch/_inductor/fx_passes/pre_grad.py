@@ -6,6 +6,7 @@ from typing import Optional
 import torch
 import torch.nn as nn
 from torch._dynamo.utils import detect_fake_mode
+from ..pattern_matcher import PatternMatcherPass
 from torch.fx.experimental.optimization import (
     matches_module_pattern,
     replace_node_module,
@@ -13,6 +14,7 @@ from torch.fx.experimental.optimization import (
 from torch.fx.passes.shape_prop import ShapeProp
 from torch.nn import functional as F
 from torch.nn.utils.fusion import fuse_conv_bn_eval, fuse_conv_bn_weights
+
 from .. import config, overrides
 
 from ..fx_utils import matches_module_function_pattern
@@ -21,10 +23,15 @@ from ..utils import is_cpu_device
 
 log = logging.getLogger(__name__)
 
+patterns = PatternMatcherPass()
+
 
 @functools.lru_cache(None)
 def lazy_init():
-    pass
+    from .split_cat import _split_cat_init
+
+    if config.split_cat_pattern_matcher:
+        _split_cat_init()
 
 
 def pre_grad_passes(gm, example_inputs):
@@ -42,10 +49,18 @@ def pre_grad_passes(gm, example_inputs):
 
     # used to implement low memory dropout
     gm = overrides.replace_fx(gm, example_inputs)
+    fake_mode = detect_fake_mode(example_inputs)
 
+    # For various fusions, we need to check input info to identify
+    # and perform proper permutation/transpose
+    ShapeProp(gm, fake_mode=fake_mode).propagate(*example_inputs)
     if config.pattern_matcher:
         lazy_init()
         gm = fuse_fx(gm, example_inputs)
+        patterns.apply(gm.graph)
+
+    gm.graph.lint()
+    gm.recompile()
 
     return gm
 
@@ -53,13 +68,8 @@ def pre_grad_passes(gm, example_inputs):
 def fuse_fx(gm: torch.fx.GraphModule, example_inputs):
     is_cpu = is_cpu_device(example_inputs)
 
-    fake_mode = detect_fake_mode(example_inputs)
-
     gm = sink_cat_after_pointwise(gm)
     if config.permute_fusion and not is_cpu:
-        # For linear permute fusion, we need to check input info to identify
-        # and perform proper permutation/transpose
-        ShapeProp(gm, fake_mode=fake_mode).propagate(*example_inputs)
         gm = linear_permute_fusion(gm)
         gm = permute_linear_fusion(gm)
         gm = permute_matmul_fusion(gm)
