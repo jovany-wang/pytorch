@@ -725,10 +725,34 @@ class CheckFunctionManager:
                 local_builder.tensor_check_examples
                 + global_builder.tensor_check_examples
             )
+            dynamic_dims = None
+            if config.dynamic_shapes:
+                import sympy
+
+                def convert(size):
+                    converted = []
+                    for dim in size:
+                        if isinstance(dim, (int, sympy.Integer)):
+                            converted.append(dim)
+                        else:
+                            converted.append(None)
+                    return converted
+
+                dynamic_dims = [
+                    convert(
+                        self.output_graph.tracing_context.fake_mode.from_tensor(
+                            t
+                        ).size()
+                    )
+                    for t in tensor_check_examples
+                ]
+
             tensor_guards = TensorGuards(
-                *tensor_check_examples, dynamic_shapes=config.dynamic_shapes
+                *tensor_check_examples,
+                dynamic_dims=dynamic_dims,
             )
             check_tensors_fn = tensor_guards.check
+            # breakpoint()
             check_tensors_verbose_fn = tensor_guards.check_verbose
             code_parts.append(f"___check_tensors({', '.join(tensor_check_names)})")
             verbose_args = ", ".join(
